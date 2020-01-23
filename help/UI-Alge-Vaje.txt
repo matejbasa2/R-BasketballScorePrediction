@@ -1,0 +1,113 @@
+Regresija - Ciljna sprem. v regresiji je zvezna
+Klasifikacija - Ciljna sprem. v klasifikaciji je diskretna
+
+Vaje:
+Imamo podatke o algah: 
+ucna <- read.table("AlgaeLearn.txt", header = T)
+summary(ucna)
+
+zelimo napovedati koncentracijo alg v dolocenih vodah (Ciljna spremenljivka je zvezna - govorimo o linearni regresiji)
+
+podano imamo testno in ucno
+
+lm.model <- lm(a1 ~ ., data = ucna) (koeficienti s katerimi utežmi mnozimo vrednosti - liearna regresija)
+
+(omogocim obdelavo diskretnih atributov) diskretni atributi trenutno niso uporabni zato jih spremenimo (spring, summer, winter, autumn)
+
+klasifikacijska tocnost (kolikokrat se ujema - pri regresiji ne morem tocno primerjati vrednosti zato primerjamo oddaljenost)
+observed/predicted
+
+mae <- function(observed, predicted)
+{
+  mean(abs(observed - predicted))
+}
+
+mse <- function(observed, predicted)
+{
+  mean((observed - predicted)^2)
+}
+
+mae(observed, predicted)
+
+moramo biti boljši od vecinskega klasifikatorja (najpreprostejši nacin je predikcije == povprecju (relativna/srednja/kvadratna napaka)
+
+rmae <- function(observed, predicted, mean.val)
+{
+  sum(abs(observed - predicted)) / sum(abs(observed - mean.val))
+}
+
+tem bliži nicli, tem boljši model je
+
+REGRESIJSKO DREVO RPART
+(vedno preveri obliko spremenljivke zvezna/diskretna)
+
+library(rpart)
+rt.model <- rpart(a1 ~ ., ucna)
+
+predicted <- predict(rt.model, testna)
+
+rmae(observed, predicted, mean(ucna$a1))
+
+UPORABA DREESA: Vzamemo testni primer, gremo v koren drevesa, gledamo vrednosti in se premikam navzdol
+
+plot(rt.model);text(rt.model, pretty = 0)
+rpart.control()
+
+SMISELNO USTAVIT GRADNJO DREVESA DA PREPRECIM OVERFITING!
+
+uporabim $Minsplit, ki mi pove stevilo primerov v listu
+
+rt <- rpart(a1 ~ ., ucna, minsplit = 100)
+plot(rt); text(rt, pretty = 0)
+
+rt <- rpart(a1 ~ ., ucna, minsplit = 2)
+plot(rt); text(rt, pretty = 0)
+
+cp - complexity parameter (koliko je velikost drevesa vplivala na tocnost)
+
+rt <- rpart(a1 ~ ., ucna, minsplit = 0)
+plot(rt); text(rt, pretty = 0)
+
+printcp(rt.model) - napove za usako vejo koliko se splaca (xerror)
+
+Lahko drevo porežemo suboptimalno
+rt.model2 <- prune(rt.model, cp = 0.02)
+plot(rt.model2);text(rt.model2, pretty = 0)
+predicted <- predict(rt.model2, testna)
+rmae(observed, predicted, mean(ucna$a1))
+
+REGRESIJSKO DREVO CORELearn
+
+library(CORElearn)
+rt.core <- CoreModel(a1 ~ ., data=ucna, model="regTree", modelTypeReg=1)
+plot(rt.core, ucna)
+predicted <- predict(rt.core, testna)
+rmae(observed, predicted, mean(ucna$a1))
+
+rt.core4 <- CoreModel(a1 ~ POR4 + size + mxPH, data=ucna, model="regTree", modelTypeReg = 3) izberemo katere atribute vzame v vpoštev
+
+NAKLJUCNI GOZD
+
+library(randomForest)
+
+rf.model <- randomForest(a1 ~ ., ucna)
+predicted <- predict(rf.model, testna)
+rmae(observed, predicted, mean(ucna$a1))
+
+Prikazi klasifikacijske in regresijske ocene (izbereva eno katero prikazeva)
+
+REKONSTRUIRANJE MANJKAJOCIH VREDNOSTI
+
+pogledam korelacijski koeficient:
+cor(cars, use="complete.obs")
+
+plot(cars$horsepower ~cars$displacement)
+
+sel <- is.na(cars$horsepower)
+model <- lm(horsepower ~ displacement, cars[!sel,])
+abline(model)
+predict(model, cars[sel,])
+
+LOKALNO UTEŽENA REGRESIJA:
+cars$horsepower[sel] <- predict(model, cars[sel,])
+model2 <- loess(horsepower ~ displacement, data)
